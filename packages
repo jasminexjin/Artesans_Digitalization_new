@@ -1,0 +1,12 @@
+streamlit
+opencv-python
+pyzbar
+pandas
+zbar
+ngrok
+
+to run on iphone: streamlit run app.py --server.address 0.0.0.0 --server.port 8501
+
+and then put : https://192.168.0.215:8501 in your iphone
+
+
