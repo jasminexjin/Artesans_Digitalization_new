@@ -4,9 +4,15 @@ pyzbar
 pandas
 zbar
 ngrok
+openxyl
 
 to run on iphone: streamlit run app.py --server.address 0.0.0.0 --server.port 8501
 
 and then put : https://192.168.0.215:8501 in your iphone
 
 
+Initilize gcloud: /Users/illiabilokonov/Downloads/google-cloud-sdk/bin/gcloud init
+* Run `gcloud cheat-sheet` to see a roster of go-to `gcloud` commands.
+* Run `gcloud --help` to see the Cloud Platform services you can interact with. And run `gcloud help COMMAND` to get help on any gcloud command.
+
+export GEMINI_API_KEY=<AIzaSyBwOV57JRpjO1VVBcJHGBpliSR03K-4WD4>
