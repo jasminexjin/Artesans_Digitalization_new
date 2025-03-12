@@ -141,7 +141,6 @@ if st.session_state.pd_results is not None:
             max_quantity = min(current_quantity, 100)  # Prevent excessive removal
             quantity_to_remove = st.number_input("Quantity to Remove", min_value=1, value=1,max_value=max_quantity, step=1)
             st.write(quantity_to_remove)
-            print(quantity_to_remove)
 
             if st.button("Remove from Inventory"):
                 remove_data(selected_product, quantity_to_remove)
