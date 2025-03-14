@@ -3,66 +3,91 @@ import pandas as pd
 import os
 import pickle
 
+from narwhals import DataFrame
+
+import find_str as fs
+
 
 PICKLE_FILE = "inventory.pkl"
+EXCEL_FILE = "inventory.xlsx"
 
-data =  {
-    'Name': [ 'test1', 'test2'],
-    'Quantity': [1, 2]
-}
 
 #load inventory from a pickle
 def load_inventory():
     """Loads inventory from a pickle file into session state or initializes default inventory."""
     if os.path.exists(PICKLE_FILE):
         with open(PICKLE_FILE, "rb") as f:
-            st.session_state.test_shit_df = pickle.load(f)
+            return pickle.load(f)
     else:
-        st.session_state.test_shit_df = pd.DataFrame(data)
-        save_inventory()
+        df = pd.DataFrame(columns=['Product Name', 'Product Type', 'Expiration Date', 'Quantity', 'Comment'])
+        save_inventory(df)
+        return df
 
 # save inventory dataframe to a pickle file
-def save_inventory():
+def save_inventory(df):
     with open(PICKLE_FILE, "wb") as f:
-        pickle.dump(st.session_state.test_shit_df, f)
+        pickle.dump(df, f)
 
-# Load inventory at startup if not already in session state
-if "test_shit_df" not in st.session_state:
-    load_inventory()
-
-if "inventory" in st.session_state:
-    del st.session_state.inventory
-
-def add_data(name_to_add, quantity_to_add):
-    df = st.session_state.test_shit_df  # Access session state DataFrame
-    if name_to_add in df["Name"].values:
-        df.loc[df["Name"] == name_to_add, "Quantity"] += quantity_to_add
+def match_products(df, input_name,expiration_date):
+    matched_df = fs.find_closest_product(product_df=df, input_name=input_name, input_date=expiration_date)
+    if isinstance(matched_df, pd.DataFrame) and not matched_df.empty:
+        # Iterate through all matches in new_df (if there are multiple)
+        for _, match_row in matched_df.iterrows():
+            matched_index = df.loc[
+                (df['Product Name'] == match_row['Product Name']) &
+                (df['Expiration Date'] == match_row['Expiration Date'])
+                ].index.tolist()
+        return matched_index
     else:
-        new_entry = pd.DataFrame([{'Name': name_to_add, 'Quantity': quantity_to_add}])
-        st.session_state.test_shit_df = pd.concat([df, new_entry], ignore_index=True)
-
-    save_inventory()  # Save changes to Pickle
+        return None
 
 
-def remove_data(name_to_remove, quantity_to_remove):
-    df = st.session_state.test_shit_df  # Access session state DataFrame
-    if name_to_remove in df["Name"].values:
-        quantity_values = df.loc[df["Name"] == name_to_remove, 'Quantity'].values
-        if quantity_values[0] >= quantity_to_remove:
-            df.loc[df["Name"] == name_to_remove, "Quantity"] -= quantity_to_remove
-            save_inventory()  # Save changes to Pickle
+def add_data(df, name, type = None , expiration_date = None, quantity_to_add = 1, comment =None):
+    matched_index = match_products(df, name,expiration_date)
+    if isinstance(matched_index, list) and len(matched_index) > 0:
+        df.loc[matched_index[0], "Quantity"] = df.loc[matched_index[0], "Quantity"] + quantity_to_add
+        #only the quantity that matches the product name and expiration date is add, first in the list
+    else:
+        new_entry = pd.DataFrame([{'Product Name': name,
+                                   'Product Type': type,
+                                   'Expiration Date': expiration_date,
+                                   'Quantity': quantity_to_add,
+                                   'Comment': comment}])
+        df = pd.concat([df, new_entry], ignore_index=True)
+
+    save_inventory(df)# Save changes to Pickle
+    return df
+
+
+def remove_data(df, name_to_remove, type = None , expiration_date = None, quantity_to_remove = 1, comment =None):
+    matched_index = match_products(df, name_to_remove, expiration_date)
+    if isinstance(matched_index, list) and len(matched_index) > 0:
+        #get the current quantity that matches with the matched index
+        quantity_values = df.loc[matched_index[0], "Quantity"]
+        if quantity_values >= quantity_to_remove:
+            #only the quantity associated with the name is removed
+            #df.loc[df['Product Name'] == name_to_remove, "Quantity"] -= quantity_to_remove this one does not work for some reason
+            df.loc[matched_index[0], "Quantity"] = df.loc[matched_index[0], "Quantity"] - quantity_to_remove
+            save_inventory(df)  # Save changes to Pickle
         else:
-            st.warning(f'Insufficient stock: Only {quantity_values[0]} available.')
+            return df, f'Insufficient stock: Only {quantity_values} available for {name_to_remove} with expiration date {expiration_date}.'
     else:
-        st.warning(f'{name_to_remove} not found in inventory.')
+        return df, f'{name_to_remove} with expiration date {expiration_date} not found in inventory.'
+    return df, None
 
+def save_to_excel(df):
+    df.to_excel(EXCEL_FILE, index=False, engine="openpyxl")
+    return 'Saved to Excel'
+
+
+'''
 st.header("Inventory Management")
 
 name = st.text_input('Enter Product Name:')
 quantity = st.number_input('Enter Quantity:', min_value=1, step=1)
 
 if st.button('Add'):
-    add_data(name, quantity)
+    st.session_state.inventory_df = add_data(st.session_state.inventory_df, name, quantity_to_add=quantity)
 
 
 name_to_remove = st.text_input("Name to Remove:")
@@ -72,9 +97,9 @@ if st.button('Remove'):
     remove_data(name_to_remove, quantity_to_remove)
 
 # Display Updated Inventory
-st.dataframe(st.session_state.test_shit_df)
+st.dataframe(st.session_state.inventory_df)
 
-
+'''
 
 
 '''

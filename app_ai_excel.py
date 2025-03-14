@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from pyzbar.pyzbar import decode
 import os
-import test_google_genai as genai
+import google_genai_plugin as genai
 import PIL.Image
 
 # Excel file path

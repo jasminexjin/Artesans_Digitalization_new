@@ -4,7 +4,7 @@ import os
 import pickle
 
 
-PICKLE_FILE = "inventory.pkl"
+PICKLE_FILE = "inventory.pkl" #i deleted this pickle file
 
 data =  {
     'Name': [ 'test1', 'test2'],
@@ -16,16 +16,24 @@ def load_inventory():
     """Loads inventory from a pickle file into session state or initializes default inventory."""
     if os.path.exists(PICKLE_FILE):
         with open(PICKLE_FILE, "rb") as f:
-            return pickle.load(f)
+            st.session_state.test_shit_df = pickle.load(f)
     else:
-        inventory_df = pd.DataFrame(columns=['Product Name', 'Product Type', 'Expiration Date', 'Quantity', 'Comment'])
-        save_inventory(inventory_df)
-        return inventory_df
+        st.session_state.test_shit_df = pd.DataFrame(data)
+        save_inventory()
 
 # save inventory dataframe to a pickle file
-def save_inventory(inventory_df):
+def save_inventory():
     with open(PICKLE_FILE, "wb") as f:
-        pickle.dump(inventory_df, f)
+        pickle.dump(st.session_state.test_shit_df, f)
+
+# Load inventory at startup if not already in session state
+if "test_shit_df" not in st.session_state:
+    load_inventory()
+
+'''
+if "inventory" in st.session_state:
+    del st.session_state.inventory
+'''
 
 
 def add_data( inventory_df, name_to_add, quantity_to_add):
