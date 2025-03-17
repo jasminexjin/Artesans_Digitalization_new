@@ -76,7 +76,23 @@ if st.button('Remove'):
 
 # Display Updated Inventory
 st.dataframe(st.session_state.inventory_df)
-
+st.data_editor(
+    st.session_state.inventory_df,
+    column_config={
+        "category": st.column_config.SelectboxColumn(
+            "App Category",
+            help="The category of the app",
+            width="medium",
+            options=[
+                "📊 Data Exploration",
+                "📈 Data Visualization",
+                "🤖 LLM",
+            ],
+            required=True,
+        )
+    },
+    hide_index=True,
+)
 
 
 

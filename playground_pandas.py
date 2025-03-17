@@ -3,8 +3,8 @@ import pickle
 
 from inventory_management import PICKLE_FILE
 
-EXCEL_PATH = "/Users/illiabilokonov/Downloads/existing_data.xlsx"
-PICKLE_FILE = 'inventory.pkl'
+EXCEL_PATH = "/Users/illiabilokonov/Downloads/full_data_cleaned.xlsx"
+PICKLE_FILE = 'inventory_full.pkl'
 
 df = pd.read_excel(EXCEL_PATH)
 
@@ -22,9 +22,9 @@ if 'Expiration Date' in df.columns:
     print('success')
 
 if 'Quantity' in df.columns:
-    pd.to_numeric(df['Quantity'], errors='coerce')
+    pd.to_numeric(df['Quantity'])
     df['Quantity'] = df['Quantity'].fillna(0)
-    print(type(df['Quantity'][0]))
+    print(df['Quantity'].unique())
     #df['Quantity'] = df['Quantity'].astype('Int64')
     print('success')
 
@@ -40,7 +40,7 @@ for i in range(len(df)):
 #df= df.loc[:,"Expiration Date"].str.split(" ").str[0]
 print(type(df['Quantity'][0]))
 print(type(df['Expiration Date'][1]))
-print(type(df['Product Name'][1]))
+print(type(df['Product Name'][30]))
 print(type(df['Comment'][1]))
 
 

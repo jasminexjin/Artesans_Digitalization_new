@@ -1,7 +1,10 @@
 import re
+
+from rapidfuzz.process import extractOne, extract
 from unidecode import unidecode
 import pandas as pd
 import pickle
+from rapidfuzz import process, fuzz
 
 
 
@@ -17,6 +20,7 @@ def find_closest_product(product_df, input_name, input_date):
     input_tokens = set(normalize_text(input_name).split())
 
     expiration_date_norm = normalize_text(input_date)
+    product_df["Product Name"] = product_df["Product Name"].astype(str)
 
     #check if the given product name in the existing product database is a subset of the input token
     def token_match(product_name):
@@ -25,23 +29,59 @@ def find_closest_product(product_df, input_name, input_date):
 
 
     # Apply token-based matching across the DataFrame for Product Name columns
+    print(product_df['Product Name'].dtype)
     product_name_results = product_df['Product Name'].apply(token_match)
-    product_date_results = product_df['Expiration Date'].apply(normalize_text) #this exists for me to debug
+
+   # product_date_results = product_df['Expiration Date'].apply(normalize_text) #this exists for me to debug
 
     #find the matching product in the existing database that matches both name and expiration date
     matched_df = product_df[product_name_results & (product_df['Expiration Date'].apply(normalize_text) == expiration_date_norm)]
 
     #return a pandas dataframe
     return matched_df if not matched_df.empty else -1
+def find_closest_product_fuzzy(product_df, input_name, input_date):
+    """
+    Find the closest matching product in `product_df` using `rapidfuzz.extractOne`
+    based on product name similarity and expiration date.
+    """
+    # Normalize input values
+    input_name_norm = normalize_text(input_name)
+    input_date_norm = normalize_text(input_date)
 
-PICKLE_FILE = "inventory.pkl"
+    # Convert 'Product Name' to string and normalize
+    product_df["Product Name"] = product_df["Product Name"].astype(str)
+    product_name_norm = product_df["Product Name"].apply(normalize_text)
+
+    # Use `rapidfuzz.extractOne` to find the closest match
+    #best_match, score, index = extractOne(query=input_name_norm, choices=product_df["Normalized Product Name"], scorer=fuzz.token_sort_ratio)
+    choice1, choice2, choice3 = extract(query=input_name_norm, choices=product_name_norm, scorer=fuzz.token_sort_ratio, limit=3)
+    # Ensure similarity score is above a threshold (e.g., 70 for reasonable match)
+    #if score >= 50:
+    #matched_row = product_df.iloc[index]  # Get the best-matching row
+
+        # Check if expiration dates also match
+    #if normalize_text(matched_row["Expiration Date"]) == input_date_norm:
+        #return pd.DataFrame([matched_row])  # Return the matched row as a DataFrame
+    #print(score)
+    name1,score,index1 = choice1
+    name2,score2,index2 = choice2
+    name3,score3,index3 = choice3
+    selected_index = [index1,index2,index3]
+
+    matched_df = product_df.loc[selected_index]
+    return matched_df if not matched_df.empty else -1# Return -1 if no valid match is found
+
+
+
+PICKLE_FILE = "inventory_full.pkl"
 with open(PICKLE_FILE, "rb") as f:
     data = pickle.load(f)
 
 
-match = find_closest_product(data, '50 мл Three-part injection disposable sterile syringe ALEXPHARM 50 ml Luer Lock (1-2,40 mm)', '2028-06')
+match = find_closest_product_fuzzy(data, '50 мл Three part injection disposable sterile syringe ALEXPHARM 50 ml Luer Lock (1-2,40 mm)', '2028-06')
 
-print(isinstance(match, pd.DataFrame))
+print(match[0] )
+
 
 
 ###testing

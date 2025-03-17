@@ -14,6 +14,8 @@ import pickle
 # Initialize session state for inventory
 if "inventory" not in st.session_state:
     st.session_state.inventory = load_inventory()
+    st.session_state.inventory['Product Name'] = st.session_state.inventory['Product Name'].astype(str)
+    st.session_state.inventory['Quantity'] = pd.to_numeric(st.session_state.inventory['Quantity'])
 
 st.header("Medical Supply Inventory Management")
 
@@ -22,7 +24,7 @@ if "pd_results" not in st.session_state:
     st.session_state.pd_results = None  # Placeholder for scanned results
 
 if "matched_results" not in st.session_state:
-    st.session_state.matched_results = None  # Placeholder for scanned results
+    st.session_state.matched_results = None  # Placeholder for matched results
 
 # Image upload section
 uploaded_file = st.camera_input("Scan Item")
@@ -55,19 +57,20 @@ if st.session_state.pd_results is not None:
         st.subheader("Scanned Product Information")
 
         #editable data that shows scanned product info
-        edited_data = st.data_editor(st.session_state.pd_results,num_rows="dynamic", key="edited_data")
-        save_inventory(edited_data)
-        st.session_state.pd_results = edited_data
+        data_for_edit = st.session_state.pd_results.copy()
+        edited_data = st.data_editor(data_for_edit,num_rows="dynamic", key="edited_data")
+        #if not edited_data.equals(st.session_state.pd_results):
+            #st.session_state.pd_results = edited_data
 
         #get info for current product
-        name_to_change = st.session_state.pd_results["Product Name"].values
+        name_to_change = edited_data["Product Name"].values
         type_to_change = st.session_state.pd_results["Product Type"].values
         expiration_date_to_change = st.session_state.pd_results["Expiration Date"].values
         comment_to_change = st.session_state.pd_results["Comment"].values
 
 
         #get the matching product info
-        potential_product = find_closest_product(product_df=st.session_state.inventory, input_name=name_to_change[0],input_date=expiration_date_to_change[0])
+        potential_product = find_closest_product_fuzzy(product_df=st.session_state.inventory, input_name=name_to_change[0],input_date=expiration_date_to_change[0])
         if isinstance(potential_product, pd.DataFrame) and not potential_product.empty:
             st.dataframe(potential_product)
             st.write('Please confirm if this product is correct:')
@@ -78,15 +81,15 @@ if st.session_state.pd_results is not None:
                 st.session_state.matched_results = st.session_state.pd_results
                 st.write('Try Scanning the product again or select Add to add the product as a new item')
         else:
-            st.session_state.matched_results = st.session_state.pd_results
+
             st.write('Product not detected in the inventory, try scanning product again or select Add to add the product as a new item')
 
 
+        if st.session_state.matched_results.empty:
+            st.warning('Please Confirm if this product is correct before proceeding to add or remove')
 
         quantity_to_change = st.number_input("Quantity to Add or Remove", min_value=1, step=1)
-        # Choose whether to add or remove
-        print(st.session_state.inventory["Quantity"].dtype)
-        print(type(quantity_to_change))
+
         left,right = st.columns(2)
         if right.button('Add'):
             name_to_add = st.session_state.matched_results["Product Name"].values

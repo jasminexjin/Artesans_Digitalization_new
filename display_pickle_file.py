@@ -1,14 +1,14 @@
 import pickle
 import pandas as pd
 
-PICKLE_FILE = "inventory.pkl"  # Your Pickle file
+PICKLE_FILE = "inventory_full.pkl"  # Your Pickle file
 
 # Load the pickle file
 with open(PICKLE_FILE, "rb") as f:
     data = pickle.load(f)
 
-if isinstance(data, pd.DataFrame) and 'Quantity' in data.columns:
-    print(f"Data type of 'Quantity' column: {data['Quantity'].dtype}")
+if isinstance(data, pd.DataFrame) and 'Product Name' in data.columns:
+    print(f"Data type of 'Product Name' column: {data['Product Name'].dtype}")
 
 # If it's a Pandas DataFrame, display it
 if isinstance(data, pd.DataFrame):

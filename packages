@@ -15,4 +15,4 @@ Initilize gcloud: /Users/illiabilokonov/Downloads/google-cloud-sdk/bin/gcloud in
 * Run `gcloud cheat-sheet` to see a roster of go-to `gcloud` commands.
 * Run `gcloud --help` to see the Cloud Platform services you can interact with. And run `gcloud help COMMAND` to get help on any gcloud command.
 
-export GEMINI_API_KEY=<AIzaSyBwOV57JRpjO1VVBcJHGBpliSR03K-4WD4>
+Prompt for token extraction: Carefully analyze the image and extract the complete product name. Ensure the name is accurate and includes all relevant specifications (e.g., gauge, size, type)should contain the **full name of the product including its Product Type**. Product type should classify the item based on its function (e.g., "IV Catheter", "Syringe", "Gloves", "Bandage"). Include any number that is next to 'ml' and 'G' but when generate the name, make sure the number has a space between its unit. Make sure the to translate whatever language there is to English.

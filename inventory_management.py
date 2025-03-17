@@ -8,7 +8,7 @@ from narwhals import DataFrame
 import find_str as fs
 
 
-PICKLE_FILE = "inventory.pkl"
+PICKLE_FILE = "inventory_full.pkl"
 EXCEL_FILE = "inventory.xlsx"
 
 
@@ -30,16 +30,15 @@ def save_inventory(df):
 
 def match_products(df, input_name,expiration_date):
     matched_df = fs.find_closest_product(product_df=df, input_name=input_name, input_date=expiration_date)
-    if isinstance(matched_df, pd.DataFrame) and not matched_df.empty:
+    if not isinstance(matched_df, pd.DataFrame) or matched_df.empty:
         # Iterate through all matches in new_df (if there are multiple)
-        for _, match_row in matched_df.iterrows():
-            matched_index = df.loc[
-                (df['Product Name'] == match_row['Product Name']) &
-                (df['Expiration Date'] == match_row['Expiration Date'])
-                ].index.tolist()
-        return matched_index
-    else:
-        return None
+        matched_df = fs.find_closest_product_fuzzy(product_df=df, input_name=input_name, input_date=expiration_date)
+    for _, match_row in matched_df.iterrows():
+        matched_index = df.loc[
+            (df['Product Name'] == match_row['Product Name']) &
+            (df['Expiration Date'] == match_row['Expiration Date'])
+            ].index.tolist()
+    return matched_index
 
 
 def add_data(df, name, type = None , expiration_date = None, quantity_to_add = 1, comment =None):
