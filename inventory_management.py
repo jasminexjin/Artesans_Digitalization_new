@@ -27,24 +27,29 @@ def load_inventory():
 def save_inventory(df):
     with open(PICKLE_FILE, "wb") as f:
         pickle.dump(df, f)
+def display_selected_product(df,input_name,expiration_date ):
+    return
 
 def match_products(df, input_name,expiration_date):
     matched_df = fs.find_closest_product(product_df=df, input_name=input_name, input_date=expiration_date)
-    if not isinstance(matched_df, pd.DataFrame) or matched_df.empty:
+    if isinstance(matched_df, pd.DataFrame) and not matched_df.empty:
         # Iterate through all matches in new_df (if there are multiple)
-        matched_df = fs.find_closest_product_fuzzy(product_df=df, input_name=input_name, input_date=expiration_date)
-    for _, match_row in matched_df.iterrows():
-        matched_index = df.loc[
-            (df['Product Name'] == match_row['Product Name']) &
-            (df['Expiration Date'] == match_row['Expiration Date'])
-            ].index.tolist()
+        for _, match_row in matched_df.iterrows():
+            matched_index = df.loc[
+                (df['Product Name'] == match_row['Product Name']) &
+                (df['Expiration Date'] == match_row['Expiration Date'])
+                ].index.tolist()
+    else:
+        matched_df, matched_index= fs.match_product_advanced(product_df=df, input_name=input_name, input_date=expiration_date, top_n=3)
+
     return matched_index
 
 
-def add_data(df, name, type = None , expiration_date = None, quantity_to_add = 1, comment =None):
-    matched_index = match_products(df, name,expiration_date)
-    if isinstance(matched_index, list) and len(matched_index) > 0:
-        df.loc[matched_index[0], "Quantity"] = df.loc[matched_index[0], "Quantity"] + quantity_to_add
+def add_data(df, name, matched_index, type = None , expiration_date = None, quantity_to_add = 1, comment =None):
+    st.write(f'inside add {matched_index}')
+    if isinstance(matched_index, int) and matched_index >= 0:
+        st.write('its inside')
+        df.loc[matched_index, "Quantity"] += quantity_to_add
         #only the quantity that matches the product name and expiration date is add, first in the list
     else:
         new_entry = pd.DataFrame([{'Product Name': name,
@@ -58,16 +63,16 @@ def add_data(df, name, type = None , expiration_date = None, quantity_to_add = 1
     return df
 
 
-def remove_data(df, name_to_remove, type = None , expiration_date = None, quantity_to_remove = 1, comment =None):
-    matched_index = match_products(df, name_to_remove, expiration_date)
-    if isinstance(matched_index, list) and len(matched_index) > 0:
+def remove_data(df, matched_index,name_to_remove, type = None , expiration_date = None, quantity_to_remove = 1, comment =None):
+    if isinstance(matched_index, int) and matched_index > 0:
         #get the current quantity that matches with the matched index
-        quantity_values = df.loc[matched_index[0], "Quantity"]
+        quantity_values = df.loc[matched_index, "Quantity"]
         if quantity_values >= quantity_to_remove:
             #only the quantity associated with the name is removed
             #df.loc[df['Product Name'] == name_to_remove, "Quantity"] -= quantity_to_remove this one does not work for some reason
-            df.loc[matched_index[0], "Quantity"] = df.loc[matched_index[0], "Quantity"] - quantity_to_remove
+            df.loc[matched_index, "Quantity"] = df.loc[matched_index, "Quantity"] - quantity_to_remove
             save_inventory(df)  # Save changes to Pickle
+            return df, None
         else:
             return df, f'Insufficient stock: Only {quantity_values} available for {name_to_remove} with expiration date {expiration_date}.'
     else:

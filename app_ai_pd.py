@@ -24,7 +24,13 @@ if "pd_results" not in st.session_state:
     st.session_state.pd_results = None  # Placeholder for scanned results
 
 if "matched_results" not in st.session_state:
-    st.session_state.matched_results = None  # Placeholder for matched results
+    st.session_state.matched_results = pd.DataFrame()  # Placeholder for matched results
+
+if "choice" not in st.session_state:
+    st.session_state.choice = None
+
+if "selected_label" not in st.session_state:
+    st.session_state.selected_label = None
 
 # Image upload section
 uploaded_file = st.camera_input("Scan Item")
@@ -68,18 +74,58 @@ if st.session_state.pd_results is not None:
         expiration_date_to_change = st.session_state.pd_results["Expiration Date"].values
         comment_to_change = st.session_state.pd_results["Comment"].values
 
+        #get the matching product index (index in the inventory)
+        index_list = match_products(df=st.session_state.inventory, input_name=name_to_change[0], expiration_date=expiration_date_to_change[0])
+        st.write(index_list)
+        choice = pd.DataFrame(columns=['Product Name', 'Expiration Date','Quantity' ,'Index'])
+        product = st.session_state.inventory
 
-        #get the matching product info
-        potential_product = find_closest_product_fuzzy(product_df=st.session_state.inventory, input_name=name_to_change[0],input_date=expiration_date_to_change[0])
+       #add the Product Name and expiration date in choice
+        for i in range(len(index_list)):
+            new = pd.DataFrame([{
+                'Product Name': product.loc[index_list[i], "Product Name"],
+                'Expiration Date': product.loc[index_list[i], 'Expiration Date'],
+                'Quantity': product.loc[index_list[i], 'Quantity'],
+                'Index': index_list[i]
+            }])
+            choice = pd.concat([choice, new])
+
+        #added back to corresponding session states
+        st.session_state.choice = choice
+        st.dataframe(choice)
+        st.session_state.choice = st.session_state.choice.sort_values(
+            by=["Product Name", "Expiration Date"]).reset_index(drop=True)
+
+        st.write("### Select a Product")
+        # Generate selection options with a unique identifier
+        st.session_state.choice["Selection Label"] = st.session_state.choice.apply(
+            lambda row: f"{row['Product Name']} (Exp: {row['Expiration Date']})  (#: {row['Quantity']}) (Index: {row['Index']})", axis=1)
+
+        # Maintain previous selection if exists
+        selection_options = st.session_state.choice["Selection Label"].tolist()
+        prev_selection = selection_options.index(
+            st.session_state.selected_label) if st.session_state.selected_label in selection_options else 0
+
+        # Let the user select a row
+        selected_label = st.radio("Choose a product:", selection_options)
+        st.session_state.selected_label = selected_label
+
+        # Find the selected row in the DataFrame
+        potential_product = st.session_state.choice[st.session_state.choice["Selection Label"] == selected_label]
+
         if isinstance(potential_product, pd.DataFrame) and not potential_product.empty:
-            st.dataframe(potential_product)
+            col1,col2 = st.columns(2)
             st.write('Please confirm if this product is correct:')
-            if st.button("Confirm My Product"):
-                st.session_state.matched_results= potential_product
-                st.write('Please select add or remove this product and input the quantity:')
-            if st.button("Not My Product"):
-                st.session_state.matched_results = st.session_state.pd_results
-                st.write('Try Scanning the product again or select Add to add the product as a new item')
+            with col1:
+                if st.button("Confirm My Product"):
+                    st.session_state.matched_results= potential_product
+                    st.write('Please select add or remove this product and input the quantity:')
+                    st.dataframe(st.session_state.matched_results)
+            with col2:
+                if st.button("None of the Above"):
+                    st.session_state.matched_results = st.session_state.pd_results
+                    st.write('Try Scanning the product again or select Add to add the product as a new item')
+                    st.dataframe(st.session_state.matched_results)
         else:
 
             st.write('Product not detected in the inventory, try scanning product again or select Add to add the product as a new item')
@@ -94,19 +140,30 @@ if st.session_state.pd_results is not None:
         if right.button('Add'):
             name_to_add = st.session_state.matched_results["Product Name"].values
             expiration_date_to_add = st.session_state.matched_results["Expiration Date"].values
+            if 'Index' in st.session_state.matched_results:
+                matched_index = st.session_state.matched_results["Index"].values
+
+            else:
+                matched_index = 0
+            st.write(matched_index)
+
             st.session_state.inventory= add_data(st.session_state.inventory,
                                                  name=name_to_add[0],
+                                                 matched_index=matched_index[0],
                                                  type=type_to_change[0],
                                                  expiration_date=expiration_date_to_add[0],
                                                  quantity_to_add=quantity_to_change,
                                                  comment=comment_to_change[0])
-            st.success(f'Added {quantity_to_change} of {name_to_change[0]} with expiration date {expiration_date_to_add[0]}.')
+            st.success(f'Added {quantity_to_change} of {name_to_add[0]} with expiration date {expiration_date_to_add[0]}.')
 
         if left.button("Remove"):
             name_to_remove = st.session_state.matched_results["Product Name"].values
             expiration_date_to_remove = st.session_state.matched_results["Expiration Date"].values
+            matched_index = st.session_state.matched_results["Index"].values
+            #st.write(type(matched_index[0]))
             st.session_state.inventory, warning_message = remove_data(st.session_state.inventory,
                                                                       name_to_remove=name_to_remove[0],
+                                                                      matched_index=matched_index[0],
                                                                       quantity_to_remove=quantity_to_change,
                                                                       expiration_date=expiration_date_to_remove[0])
 

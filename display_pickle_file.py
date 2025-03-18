@@ -12,7 +12,7 @@ if isinstance(data, pd.DataFrame) and 'Product Name' in data.columns:
 
 # If it's a Pandas DataFrame, display it
 if isinstance(data, pd.DataFrame):
-    print(data)  # Print in console
+    print(data.iloc[152])  # Print in console
 
 else:
     print("Pickle file does not contain a DataFrame:", data)
