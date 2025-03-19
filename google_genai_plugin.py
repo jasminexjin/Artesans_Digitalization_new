@@ -8,6 +8,7 @@ import io
 import json
 import pandas as pd
 from dotenv import load_dotenv
+import pickle
 
 load_dotenv()  # Load secrets from .env
 
@@ -68,10 +69,10 @@ def process_medical_supply(image):
                 {
                     "products": [
                     {
-                        "product_name": "Vasofix Safety FEP 14 G x 2\" (2,2 x 50 mm) - IV Catheter",
-                        "product_type": "A",
-                        "expiration_date": "2026-07-01",
-                        "quantity": 1
+                        "Product Name": "Vasofix Safety FEP 14 G x 2\" (2,2 x 50 mm) - IV Catheter",
+                        "Product Type": "A",
+                        "Expiration Date": "2026-07-01",
+                        "Quantity": 1
                     }
                     ]
 
@@ -95,6 +96,73 @@ def process_medical_supply(image):
         return {"error": "Failed to parse JSON response from Gemini API"}
 
 
+'''
+    :param df: Pandas DataFrame containing product names and expiration dates.
+    :param query_name: The product name to search for.
+    :param query_expiration: The expiration date to prioritize (can be None).
+    :param top_n: Number of best matches to return.
+    :return: DataFrame with top N matches, prioritized by expiration date.
+'''
+def find_closest_product_genai(df, query_name, query_expiration=None, top_n=3 ):
+    if "Product Name" not in df.columns:
+        raise ValueError("The DataFrame must have a 'Product Name' column.")
+    if "Expiration Date" not in df.columns:
+        raise ValueError("The DataFrame must have a 'Expiration Date' column.")
+    # Convert DataFrame product names to a string for Gemini prompt
+    product_list = "\n".join([
+        f"Index {index}: {row['Product Name']} (Expiration: {row['Expiration Date'] if pd.notna(row['Expiration Date']) else 'Unknown'})"
+        for index, row in df.iterrows()
+    ])
+
+    prompt = f"""
+        I need to match a product name from a database, with an optional expiration date preference.
+        The database contains the following product names with expiration dates:
+
+        {product_list}
+
+        The user is searching for: "{query_name}"
+        The expiration date they prefer is: "{query_expiration if query_expiration else 'Any'}"
+
+        Find the **top {top_n} closest matching product names** based on meaning. 
+        If possible, prioritize products that also have a matching expiration date.
+        Return items that best match in JSON format with **closest matching product names **, its corresponding expiration, its corresponding index, and its corresponding indexes from the original database {df}.
+
+            MATCHES = {{
+
+            'Product Name': str, 
+            'Expiration Date': str, 
+            'Index': int
+            'Quantity': int
+            }}
+
+            
+            Return 'products': list[MATCHES]
+        
+        """
+    response = model.models.generate_content(
+        model=MODEL_ID,
+        contents= prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json"
+        )
+    )
+
+    #converting json to pd
+    final_df = convert_json_to_pd(response.text)
+
+    return convert_json_to_pd(response.text)
+
+
+PICKLE_FILE = "inventory_full.pkl"
+with open(PICKLE_FILE, "rb") as f:
+    data = pickle.load(f)
+
+
+match = find_closest_product_genai(data, 'Electrostatic Filter VT 300-1500 ml)', '2025-06-01')
+
+print(match['Index'].dtypes)
+'''
+'''
 
 #Testing genai
 #image = PIL.Image.open('IMG_1708.png')

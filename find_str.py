@@ -20,7 +20,7 @@ def find_closest_product(product_df, input_name, input_date):
 
     input_tokens = set(normalize_text(input_name).split())
 
-    expiration_date_norm = normalize_text(input_date)
+    expiration_date_norm = normalize_text(input_date) if input_date else None
     product_df["Product Name"] = product_df["Product Name"].astype(str)
 
     #check if the given product name in the existing product database is a subset of the input token
@@ -36,6 +36,7 @@ def find_closest_product(product_df, input_name, input_date):
    # product_date_results = product_df['Expiration Date'].apply(normalize_text) #this exists for me to debug
 
     #find the matching product in the existing database that matches both name and expiration date
+
     matched_df = product_df[product_name_results & (product_df['Expiration Date'].apply(normalize_text) == expiration_date_norm)]
 
     #return a pandas dataframe
@@ -144,21 +145,21 @@ def find_closest_product_transformer(product_df, input_name, input_date):
     embedding_input = model.encode(input_name_norm, convert_to_tensor=True)
     product_embeddings = model.encode(product_name_list, convert_to_tensor=True)
 
-    similarity = util.pytorch_cos_sim(embedding_input, product_embeddings).item()
-    best_match_idx = similarity.argmax().item()
+    similarity = util.pytorch_cos_sim(embedding_input, product_embeddings).max().item()
+    best_match_idx = int(similarity)
     best_match = product_df.iloc[best_match_idx]["Product Name"]
 
-    return best_match
-
-
+    return best_match, similarity
 
 '''
+
+
 PICKLE_FILE = "inventory_full.pkl"
 with open(PICKLE_FILE, "rb") as f:
     data = pickle.load(f)
 
 
-match = match_product_advanced(data, '50 мл Three part injection disposable sterile syringe ALEXPHARM 50 ml Luer Lock (1-2,40 mm)', '2028-06')
+match = find_closest_product_transformer(data, '50 мл Three part injection disposable sterile syringe ALEXPHARM 50 ml Luer Lock (1-2,40 mm)', '2028-06')
 
 print(match)
 

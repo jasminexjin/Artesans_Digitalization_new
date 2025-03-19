@@ -6,7 +6,7 @@ import pickle
 from narwhals import DataFrame
 
 import find_str as fs
-
+import google_genai_plugin as genai
 
 PICKLE_FILE = "inventory_full.pkl"
 EXCEL_FILE = "inventory.xlsx"
@@ -27,8 +27,7 @@ def load_inventory():
 def save_inventory(df):
     with open(PICKLE_FILE, "wb") as f:
         pickle.dump(df, f)
-def display_selected_product(df,input_name,expiration_date ):
-    return
+
 
 def match_products(df, input_name,expiration_date):
     matched_df = fs.find_closest_product(product_df=df, input_name=input_name, input_date=expiration_date)
@@ -44,16 +43,27 @@ def match_products(df, input_name,expiration_date):
 
     return matched_index
 
+def match_products_ai(df, input_name,expiration_date, top_n = 3):
+    matched_df= genai.find_closest_product_genai(df= df, query_name= input_name, query_expiration=expiration_date, top_n=top_n)
+    if isinstance(matched_df, pd.DataFrame) and not matched_df.empty:
+        matched_index = matched_df['Index'].tolist()
+    else:
+        st.warning('Not Using LLM')
+        matched_index = match_products(df=df, input_name=input_name, input_date=expiration_date, top_n=3)
+    return matched_index
 
-def add_data(df, name, matched_index, type = None , expiration_date = None, quantity_to_add = 1, comment =None):
-    st.write(f'inside add {matched_index}')
-    if isinstance(matched_index, int) and matched_index >= 0:
-        st.write('its inside')
-        df.loc[matched_index, "Quantity"] += quantity_to_add
+
+def add_data(df, name, matched_index, product_type = None , expiration_date = None, quantity_to_add = 1, comment =None):
+    st.write(f"Existing DataFrame indices: {df.index.tolist()}")  # Debug: Check available indices
+    matched_index = int(matched_index)
+    if isinstance(matched_index, int) and matched_index > 0:
+        st.write(f'Updating existing product for index {matched_index} ...')
+        df.at[matched_index, "Quantity"] = df.at[matched_index, "Quantity"] + quantity_to_add
         #only the quantity that matches the product name and expiration date is add, first in the list
     else:
+        st.write('Adding new product...')
         new_entry = pd.DataFrame([{'Product Name': name,
-                                   'Product Type': type,
+                                   'Product Type': product_type,
                                    'Expiration Date': expiration_date,
                                    'Quantity': quantity_to_add,
                                    'Comment': comment}])
@@ -64,13 +74,14 @@ def add_data(df, name, matched_index, type = None , expiration_date = None, quan
 
 
 def remove_data(df, matched_index,name_to_remove, type = None , expiration_date = None, quantity_to_remove = 1, comment =None):
+    matched_index = int(matched_index)
     if isinstance(matched_index, int) and matched_index > 0:
         #get the current quantity that matches with the matched index
         quantity_values = df.loc[matched_index, "Quantity"]
         if quantity_values >= quantity_to_remove:
             #only the quantity associated with the name is removed
             #df.loc[df['Product Name'] == name_to_remove, "Quantity"] -= quantity_to_remove this one does not work for some reason
-            df.loc[matched_index, "Quantity"] = df.loc[matched_index, "Quantity"] - quantity_to_remove
+            df.loc[matched_index, "Quantity"] = df.at[matched_index, "Quantity"] - quantity_to_remove
             save_inventory(df)  # Save changes to Pickle
             return df, None
         else:
@@ -78,6 +89,10 @@ def remove_data(df, matched_index,name_to_remove, type = None , expiration_date 
     else:
         return df, f'{name_to_remove} with expiration date {expiration_date} not found in inventory.'
     return df, None
+
+def check_expired(df, expiration_date):
+
+    return
 
 def save_to_excel(df):
     df.to_excel(EXCEL_FILE, index=False, engine="openpyxl")

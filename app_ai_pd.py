@@ -73,46 +73,74 @@ if st.session_state.pd_results is not None:
         type_to_change = st.session_state.pd_results["Product Type"].values
         expiration_date_to_change = st.session_state.pd_results["Expiration Date"].values
         comment_to_change = st.session_state.pd_results["Comment"].values
+        #st.session_state.pd_results = edited_data
 
+
+        # ****This part is Using fuzzy****
         #get the matching product index (index in the inventory)
-        index_list = match_products(df=st.session_state.inventory, input_name=name_to_change[0], expiration_date=expiration_date_to_change[0])
-        st.write(index_list)
-        choice = pd.DataFrame(columns=['Product Name', 'Expiration Date','Quantity' ,'Index'])
-        product = st.session_state.inventory
+        #index_list = match_products(df=st.session_state.inventory, input_name=name_to_change[0], expiration_date=expiration_date_to_change[0], top_n = 3)
+        #st.write(index_list)
+        #choice = pd.DataFrame(columns=['Product Name', 'Expiration Date','Quantity' ,'Index'])
+        #product = st.session_state.inventory
 
        #add the Product Name and expiration date in choice
-        for i in range(len(index_list)):
-            new = pd.DataFrame([{
-                'Product Name': product.loc[index_list[i], "Product Name"],
-                'Expiration Date': product.loc[index_list[i], 'Expiration Date'],
-                'Quantity': product.loc[index_list[i], 'Quantity'],
-                'Index': index_list[i]
-            }])
-            choice = pd.concat([choice, new])
-
+        #for i in range(len(index_list)):
+            #new = pd.DataFrame([{
+                #'Product Name': product.loc[index_list[i], "Product Name"],
+                #'Expiration Date': product.loc[index_list[i], 'Expiration Date'],
+                #'Quantity': product.loc[index_list[i], 'Quantity'],
+                #'Index': index_list[i]
+           # }])
+           # choice = pd.concat([choice, new])
+            
         #added back to corresponding session states
-        st.session_state.choice = choice
-        st.dataframe(choice)
-        st.session_state.choice = st.session_state.choice.sort_values(
-            by=["Product Name", "Expiration Date"]).reset_index(drop=True)
+        #st.session_state.choice = choice
+        #st.dataframe(choice)
+        #st.session_state.choice = st.session_state.choice.sort_values(
+            #by=["Product Name", "Expiration Date"]).reset_index(drop=True)
 
-        st.write("### Select a Product")
-        # Generate selection options with a unique identifier
-        st.session_state.choice["Selection Label"] = st.session_state.choice.apply(
-            lambda row: f"{row['Product Name']} (Exp: {row['Expiration Date']})  (#: {row['Quantity']}) (Index: {row['Index']})", axis=1)
+        #***STARTS of using LLM Matching***
+        matched_df = genai.find_closest_product_genai(df=st.session_state.inventory, query_name=name_to_change[0],
+                                            query_expiration =expiration_date_to_change[0], top_n=3)
+        st.write("Matched Products from AI:", matched_df)
+        #***ENDS of using LLM Matching***
 
-        # Maintain previous selection if exists
-        selection_options = st.session_state.choice["Selection Label"].tolist()
-        prev_selection = selection_options.index(
-            st.session_state.selected_label) if st.session_state.selected_label in selection_options else 0
+        if not matched_df.empty:
+            st.session_state.choice = matched_df.copy()
 
-        # Let the user select a row
-        selected_label = st.radio("Choose a product:", selection_options)
-        st.session_state.selected_label = selected_label
 
-        # Find the selected row in the DataFrame
-        potential_product = st.session_state.choice[st.session_state.choice["Selection Label"] == selected_label]
+            #sort for consistent ordering
+            st.session_state.choice = st.session_state.choice.sort_values(
+                by=['Index']).reset_index(drop=True)
 
+            st.write("### Select a Product")
+            st.session_state.choice["Selection Label"] = st.session_state.choice.apply(
+                lambda
+                    row: f"{row['Product Name']} (Exp: {row['Expiration Date']})  (#: {row['Quantity']}) (Index: {row['Index']})",
+                axis=1
+            )
+
+            # Maintain previous selection if exists
+            selection_options = st.session_state.choice["Selection Label"].tolist()
+            prev_selection = selection_options.index(
+                st.session_state.selected_label) if st.session_state.selected_label in selection_options else 0
+
+            # Let the user select a row WITH RADIO
+            #selected_label = st.radio("Choose a product:", selection_options)
+            #st.session_state.selected_label = selected_label
+
+            selected_label = st.selectbox("Choose a product:", selection_options, index=prev_selection)
+            st.session_state.selected_label = selected_label
+
+            # Find the selected row in the DataFrame
+            potential_product = st.session_state.choice[st.session_state.choice["Selection Label"] == selected_label]
+
+        else:
+            st.warning("No matching products found.")
+            potential_product = edited_data
+
+
+        #confirmation of matching products
         if isinstance(potential_product, pd.DataFrame) and not potential_product.empty:
             col1,col2 = st.columns(2)
             st.write('Please confirm if this product is correct:')
@@ -123,11 +151,11 @@ if st.session_state.pd_results is not None:
                     st.dataframe(st.session_state.matched_results)
             with col2:
                 if st.button("None of the Above"):
-                    st.session_state.matched_results = st.session_state.pd_results
+                    st.session_state.matched_results = edited_data
                     st.write('Try Scanning the product again or select Add to add the product as a new item')
                     st.dataframe(st.session_state.matched_results)
         else:
-
+            st.session_state.matched_results = edited_data
             st.write('Product not detected in the inventory, try scanning product again or select Add to add the product as a new item')
 
 
@@ -141,16 +169,15 @@ if st.session_state.pd_results is not None:
             name_to_add = st.session_state.matched_results["Product Name"].values
             expiration_date_to_add = st.session_state.matched_results["Expiration Date"].values
             if 'Index' in st.session_state.matched_results:
-                matched_index = st.session_state.matched_results["Index"].values
-
+                matched_index = (st.session_state.matched_results["Index"].values)[0]
             else:
-                matched_index = 0
+                matched_index = -1
             st.write(matched_index)
 
             st.session_state.inventory= add_data(st.session_state.inventory,
                                                  name=name_to_add[0],
-                                                 matched_index=matched_index[0],
-                                                 type=type_to_change[0],
+                                                 matched_index=matched_index,
+                                                 product_type=type_to_change[0],
                                                  expiration_date=expiration_date_to_add[0],
                                                  quantity_to_add=quantity_to_change,
                                                  comment=comment_to_change[0])
